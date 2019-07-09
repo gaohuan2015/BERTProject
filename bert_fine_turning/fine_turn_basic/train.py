@@ -5,12 +5,12 @@ import logging
 import argparse
 import numpy as np
 from test import val, test
-from model import Classifiermodel
 from tqdm import tqdm, trange
+from model import Classifiermodel, Classifier_pad_model, Classifier_sep_model
 from torch.nn import CrossEntropyLoss
 from pretrained_bert.optimization import BertAdam
+from data import MyPro, convert_examples_to_features
 from pretrained_bert.tokenization import BertTokenizer
-from data_input import MyPro, convert_examples_to_features
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 
@@ -38,7 +38,7 @@ parser.add_argument("--max_seq_length", default=100, type=int, help="字符串�
 parser.add_argument("--do_lower_case", default=True, action='store_true', help="英文字符的大小写转换")
 parser.add_argument("--train_batch_size", default=32, type=int, help="训练时batch大小")
 parser.add_argument("--eval_batch_size", default=1, type=int, help="验证时batch大小")
-parser.add_argument("--learning_rate", default=5e-5, type=float, help="Adam初始学习步长")
+parser.add_argument("--learning_rate", default=6e-5, type=float, help="Adam初始学习步长")
 parser.add_argument("--num_train_epochs", default=10.0, type=float, help="训练的epochs次数")
 parser.add_argument("--warmup_proportion", default=0.1, type=float,
                     help="Proportion of training to perform linear learning rate warmup for E.g., 0.1 = 10%% of training.")
@@ -73,7 +73,9 @@ train_examples = processor.get_train_examples(args.data_dir)
 num_labels = len(label_list)
 num_train_steps = int(len(train_examples) / args.train_batch_size * args.num_train_epochs)
 tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
-bert_class_model = Classifiermodel.from_pretrained(args.bert_model, bert_output_size=768, num_labels=num_labels)
+# bert_class_model = Classifiermodel.from_pretrained(args.bert_model, bert_output_size=768, num_labels=num_labels)
+bert_class_model = Classifier_pad_model.from_pretrained(args.bert_model, bert_output_size=768*2, num_labels=num_labels)
+#bert_class_model = Classifier_sep_model.from_pretrained(args.bert_model, bert_output_size=768*2, num_labels=num_labels)
 bert_class_model.to(device)
 if args.local_rank != -1:
     bert_class_model = torch.nn.parallel.DistributedDataParallel(bert_class_model, device_ids=[args.local_rank], output_device=args.local_rank)
@@ -81,7 +83,7 @@ elif n_gpu > 1: bert_class_model = torch.nn.DataParallel(bert_class_model)
 
 # Prepare optimizer
 param_optimizer = list(bert_class_model.named_parameters())
-no_decay = ['bias','LayerNorm.bias', 'LayerNorm.weight']
+no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
 optimizer_grouped_parameters = [
     {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.01},
     {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.0}]
@@ -107,8 +109,6 @@ else: train_sampler = DistributedSampler(train_data)
 train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
 
 bert_class_model.train()
-best_score = 0.7
-flags = 0
 loss_func = CrossEntropyLoss()
 for _ in trange(int(args.num_train_epochs), desc="Epoch"):
     for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
@@ -131,16 +131,9 @@ for _ in trange(int(args.num_train_epochs), desc="Epoch"):
         bert_class_model.zero_grad()
 
     pr = val(bert_class_model, processor, args, label_list, tokenizer, device)
-    if pr > best_score:
-        best_score = pr
-        print('precision is {}'.format(pr))
-        flags = 0
-        checkpoint = {'state_dict': bert_class_model.state_dict()}
-        torch.save(checkpoint, args.model_save_pth)
-    else:
-        print('precision is {}'.format(pr))
-        flags += 1
-        if flags >= 6: break
-
+    best_score = pr
+    print('precision is {}'.format(pr))
+    checkpoint = {'state_dict': bert_class_model.state_dict()}
+    torch.save(checkpoint, args.model_save_pth)
 bert_class_model.load_state_dict(torch.load(args.model_save_pth)['state_dict'])
 test(bert_class_model, processor, args, label_list, tokenizer, device)

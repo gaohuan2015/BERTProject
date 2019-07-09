@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from data_input import convert_examples_to_features
+from data import convert_examples_to_features
 from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
 

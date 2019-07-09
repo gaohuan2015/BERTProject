@@ -2,33 +2,30 @@ import csv
 
 label2id_dict = {}
 label_list = []
-# with open('/home/user/pycharmprojects/duanxuxiang/pytorch-pretrained-BERT-master/data/atis/train/label', 'r') as f:
-#     for line in f:
-#         labelname = line.strip('\n')
-#         if labelname not in label_list:
-#             label_list.append(labelname)
-# with open('/home/user/pycharmprojects/duanxuxiang/pytorch-pretrained-BERT-master/data/atis/test/label', 'r') as f:
-#     for line in f:
-#         labelname = line.strip('\n')
-#         if labelname not in label_list:
-#             label_list.append(labelname)
-#
-# with open('/home/user/pycharmprojects/duanxuxiang/pytorch-pretrained-BERT-master/data/atis/valid/label', 'r') as f:
-#     for line in f:
-#         labelname = line.strip('\n')
-#         if labelname not in label_list:
-#             label_list.append(labelname)
-# print(len(label_list))
-# csvFile = open('/home/user/pycharmprojects/duanxuxiang/pytorch-pretrained-BERT-master/data/atis/train/label2id.tsv', "w")
-# writer = csv.writer(csvFile, delimiter='\t')
-# k = 0
-# for ele in label_list:
-#     writer.writerow([ele, k])
-#     k += 1
-# csvFile.close()
+with open('/home/user/pycharmprojects/duanxuxiang/pytorch-pretrained-BERT-master/data/atis/train/label', 'r') as f:
+    for line in f:
+        labelname = line.strip('\n')
+        if labelname not in label_list:
+            label_list.append(labelname)
+with open('/home/user/pycharmprojects/duanxuxiang/pytorch-pretrained-BERT-master/data/atis/test/label', 'r') as f:
+    for line in f:
+        labelname = line.strip('\n')
+        if labelname not in label_list:
+            label_list.append(labelname)
 
-
-
+with open('/home/user/pycharmprojects/duanxuxiang/pytorch-pretrained-BERT-master/data/atis/valid/label', 'r') as f:
+    for line in f:
+        labelname = line.strip('\n')
+        if labelname not in label_list:
+            label_list.append(labelname)
+print(len(label_list))
+csvFile = open('/home/user/pycharmprojects/duanxuxiang/pytorch-pretrained-BERT-master/data/atis/train/label2id.tsv', "w")
+writer = csv.writer(csvFile, delimiter='\t')
+k = 0
+for ele in label_list:
+    writer.writerow([ele, k])
+    k += 1
+csvFile.close()
 
 
 with open('/home/user/pycharmprojects/duanxuxiang/pytorch-pretrained-BERT-master/data/atis/train/label2id.tsv', 'r') as f:
