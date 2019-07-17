@@ -12,7 +12,7 @@ SEED = 0
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 reg = "[^0-9A-Za-z\u4e00-\u9fa5]"
-excelFile = xlrd.open_workbook(r'F:\py programmes\programmes\bert_fine_tune\chinese_data\small_samp.xlsx')
+excelFile = xlrd.open_workbook(r'\chinese_data\small_samp.xlsx')
 sheet = excelFile.sheet_by_index(0)
 problem_tmp = sheet.col_values(0)
 problem = []
@@ -33,9 +33,9 @@ if len(problem) == len(label):
     step = int(len(problem) / k)
     for zhe in range(k):
         test_id_list = dataid[zhe * step:(zhe + 1) * step]
-        if not os.path.exists(".Crossval/train_NO.{}/".format(zhe)):
-            os.makedirs(".Crossval/train_NO.{}/".format(zhe))
-        f = open(".Crossval/train_NO.{}/test.tsv".format(zhe), "w", encoding='utf-8')
+        if not os.path.exists("Crossval/train_NO.{}/".format(zhe)):
+            os.makedirs("Crossval/train_NO.{}/".format(zhe))
+        f = open("Crossval/train_NO.{}/test.tsv".format(zhe), "w", encoding='utf-8')
         csvwriter = csv.writer(f, delimiter='\t')
         seg_id = 0
         for i in test_id_list:
@@ -47,7 +47,7 @@ if len(problem) == len(label):
         for i in range(len(problem)):
             if i not in test_id_list:
                 train_id_list.append(i)
-        f = open(".Crossval/train_NO.{}/train.tsv".format(zhe), "w", encoding='utf-8')
+        f = open("Crossval/train_NO.{}/train.tsv".format(zhe), "w", encoding='utf-8')
         csvwriter = csv.writer(f, delimiter='\t')
         seg_id = 0
         for i in train_id_list:
@@ -55,7 +55,7 @@ if len(problem) == len(label):
             csvwriter.writerow([segment_id, str(problem[i]), str(label_dict[label[i]])])
             seg_id += 1
         f.close()
-        f = open(".Crossval/train_NO.{}/label2id.tsv".format(zhe), "w", encoding='utf-8')
+        f = open("Crossval/train_NO.{}/label2id.tsv".format(zhe), "w", encoding='utf-8')
         csvwriter = csv.writer(f, delimiter='\t')
         for name, id in label_dict.items():
             csvwriter.writerow([name, str(id)])
