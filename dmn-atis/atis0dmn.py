@@ -53,10 +53,10 @@ def pad_to_batch(batch, w_to_ix): # for bAbI dataset
     max_a = max([aa.size(1) for aa in a])
 
     facts, fact_masks, q_p, a_p = [], [], [], []
-    for i in range(len(batch)):#历遍每个样本（若每个样本有n个句子，则i=1:n）
+    for i in range(len(batch)):
         fact_p_t = []
-        for j in range(len(fact[i])):#历遍每个句子的每个单词（若一个句子有m个单词，则j=1:m）
-            if fact[i][j].size(1) < max_len:#第i个句子的第j个单词的长度(即由几个字母组成)
+        for j in range(len(fact[i])):
+            if fact[i][j].size(1) < max_len:
                 fact_p_t.append(torch.cat([fact[i][j], Variable(LongTensor([w_to_ix['<PAD>']] * (max_len - fact[i][j].size(1)))).view(1, -1)], 1))
             else:
                 fact_p_t.append(fact[i][j])
@@ -100,23 +100,12 @@ def ATIS_data_load(path):
     fact = []
     try:
         for d in data:
-            index = d.split(' ')[0]
-            if index == '1':
-                fact = []
-                qa = []
             temp = d.split('\t')
-             #print(temp)
-             #print(temp[1])
             stemp=temp[1].split() + ['</s>']
-             #print(stemp)
             fact.append(stemp)
-             #print(fact)
             q = 'what film is playing nearby?'.replace('?', '').split(' ')[0:] + ['?']
             a = temp[2].split() + ['</s>']
             data_p.append([fact, q, a])
-#        else:
-#            tokens = d.replace('.', '\t').split('\t ')[1:] + ['</s>']
-#            fact.append(tokens)
     except:
         print("Please check the data is right")
         return None
