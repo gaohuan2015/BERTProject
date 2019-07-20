@@ -4,16 +4,15 @@ import random
 import numpy as np
 
 
-trainDataFile = 'D:\\bert1\BERTProject\BERTProject\\textCNN_chinese\\traindata_vec.txt'
-valDataFile = 'D:\\bert1\BERTProject\BERTProject\\textCNN_chinese\\testdata_vec.txt'
+trainDataFile = 'textCNN_chinese\model_save\\traindata_vec.txt'
+testDataFile = 'textCNN_chinese\model_save\\testdata_vec.txt'
 
 
-def get_valdata(file=valDataFile):
-    valData = open(valDataFile, 'r', encoding='utf_8').read().split('\n')
-    valData = list(filter(None, valData))
-    random.shuffle(valData)
-
-    return valData
+def get_testdata(file=testDataFile):
+    testData = open(testDataFile, 'r', encoding='utf_8').read().split('\n')
+    testData = list(filter(None, testData))
+    random.shuffle(testData)
+    return testData
 
 
 class textCNN_data(Dataset):

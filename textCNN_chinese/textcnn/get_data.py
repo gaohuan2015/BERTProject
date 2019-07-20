@@ -1,23 +1,23 @@
 import shutil
 import csv
 
-path = "D:\\bert1\BERTProject\BERTProject\\textCNN_chinese\data\\train.csv"
-train = "D:\\bert1\BERTProject\BERTProject\\textCNN_chinese\\train.txt"
+testCsvFile = "data\Chinese\Chinese raw data\\re_seg_test.csv"
+testFile = "textCNN_chinese\model_save\\test.txt"
+trainCsvFile = "data\Chinese\Chinese raw data\\re_seg_train.csv"
+trainFile = "textCNN_chinese\model_save\\train.txt"
 
-with open(train, 'w', encoding='utf_8') as tr:
-    with open(path, 'r', encoding='utf_8') as f:
-        lines = csv.reader(f)
-        lines = list(filter(None,lines))
-        worddict = {}
-        idx = 0
-        for line in lines:
-            context = line[1]
-            w = line[2]
-            if not w in worddict:
-                worddict[w] = idx
-                idx += 1
-            tr.write(context + '\t' + str(worddict[w]) + '\n')
+def get_data(path, Opath):
+    with open(Opath, 'w', encoding='utf_8') as tr:
+        with open(path, 'r', encoding='utf_8') as f:
+            lines = csv.reader(f)
+            for line in lines:
+                line = line[0]
+                context = line.split('\t')[1]
+                label = line.split('\t')[2]
+                tr.write(context + '\t' + label + '\n')
 
+get_data(trainCsvFile, trainFile)
+get_data(testCsvFile, testFile)
 
 
 
