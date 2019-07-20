@@ -2,8 +2,8 @@ import fastText.FastText as ff
 import csv
 
 #def transfercsv_to_fastText(csv_path,fastText_file):
-path =r"D:\PycharmProjects\fastText-fastText-latest-build43\chinese data\re_test.tsv"
-with open(r'D:\PycharmProjects\fastText-fastText-latest-build43\data_chinese\re_test', 'w',encoding='utf_8') as t:
+path =r"data\Chinese\Chinese raw data\re_test.tsv"
+with open(r'data\Chinese\Chinese fasttext data\re_test', 'w',encoding='utf_8') as t:
     with open(path, 'r',encoding='utf_8') as f:
         lines = csv.reader(f,delimiter='\t')
         for line in lines:
@@ -13,15 +13,15 @@ with open(r'D:\PycharmProjects\fastText-fastText-latest-build43\data_chinese\re_
 
 
 #训练模型
-classifier = ff.train_supervised(r'D:\PycharmProjects\fastText-fastText-latest-build43\data_chinese\re_train',label='_label_')
+classifier = ff.train_supervised(r'data\Chinese\Chinese fasttext data\re_train',label='_label_')
 #储存模型
-classifier.save_model(r'D:\PycharmProjects\\fastText-fastText-latest-build43\data_chinese\\fastText_model2')#保存模型
+classifier.save_model(r'data\Chinese\Chinese fasttext data\fastText_model2')#保存模型
 #加载模型
-classifier = ff.load_model(r'D:\PycharmProjects\\fastText-fastText-latest-build43\data_chinese\\fastText_model2')
+classifier = ff.load_model(r'data\Chinese\Chinese fasttext data\fastText_model2')
 #测试模型
 correct = 0
 total_count = 0
-with open(r'D:\PycharmProjects\fastText-fastText-latest-build43\data_chinese\re_test','r',encoding='utf_8') as t:
+with open(r'data\Chinese\Chinese fasttext data\re_test','r',encoding='utf_8') as t:
      lines = t.readlines()
      total_count = len(lines)
      print(total_count)
