@@ -97,9 +97,9 @@ def ATIS_data_load(path):
 
     data = [d[:-1] for d in data]
     data_p = []
-    fact = []
     try:
         for d in data:
+            fact = []
             temp = d.split('\t')
             stemp=temp[1].split() + ['</s>']
             fact.append(stemp)
