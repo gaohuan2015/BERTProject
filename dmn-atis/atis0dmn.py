@@ -112,7 +112,7 @@ def ATIS_data_load(path):
     return data_p
 
 #train_data = bAbI_data_load(r'D:\cyh\dmn11\tasks_1-20_v1-2\en-10k\qa5_three-arg-relations_train.txt')
-train_data = ATIS_data_load(r'D:\cyh\dmn11\data\atis\train.tsv')
+train_data = ATIS_data_load(r'data/atis/train.tsv')
 
 train_data[0]
 
@@ -309,7 +309,7 @@ def pad_to_fact(fact, x_to_ix): # this is for inference
     fact_mask = torch.cat([Variable(ByteTensor(tuple(map(lambda s: s ==0, t.data))), volatile=False) for t in fact]).view(fact.size(0), -1)
     return fact, fact_mask
 
-test_data = ATIS_data_load(r'D:\cyh\dmn11\data\atis\test.tsv')
+test_data = ATIS_data_load(r'data/atis/test.tsv')
 
 for t in test_data:
     for i, fact in enumerate(t[0]):
