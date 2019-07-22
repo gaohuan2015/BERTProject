@@ -42,10 +42,11 @@ def buildDataSet(mode):
                 for w in sentence:
                     s = s + w + ' '
                 s = s.strip()
-            else:
+            elif mode == 'seg':
                 seg_list = jieba.cut(sentence.strip(), cut_all = False)
                 s = ' '.join(seg_list)
-                #s = sentence
+            else:
+                s = sentence
             l2id = label2idx[label]
             t = tuple((guid, s, l2id))
             segement_sentences.append(t)
