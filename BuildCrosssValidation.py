@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 import xlrd
 import uuid
 import copy
@@ -43,7 +44,7 @@ def buildDataSet(mode):
             l2id = label2idx[label]
             t = tuple((guid, s, l2id))
             segement_sentences.append(t)
-            id = id+1
+            id = id + 1
         data_set[label] = segement_sentences
 
 
@@ -55,27 +56,25 @@ def write_dataset_to_file(path, nfold):
             segement_sentences = data_set[label]
             data_copy = copy.deepcopy(segement_sentences)
             data_size = len(segement_sentences)
-            number = int(data_size/nfold)
+            number = int(data_size / nfold)
             for didx in range(data_size):
-                if didx >= i*number and didx <= (i+1)*number-1:
+                if didx >= i * number and didx <= (i + 1) * number - 1:
                     test.append(data_copy[didx])
                 else:
                     train.append(data_copy[didx])
-        train_path = path+'_train'+str(i)+'.csv'
-        test_path = path+'_test'+str(i)+'.csv'
-        with open(train_path, 'w') as f:
+        train_path = path + '_train' + str(i) + '.csv'
+        test_path = path + '_test' + str(i) + '.csv'
+        with open(train_path, 'w', encoding='utf-8') as f:
             for d in range(len(train)):
                 id, sentence, label2id = train[d]
-                f.write('train'+str(id)+'\t'+str(sentence) +
-                        '\t'+str(label2id)+'\n')
-        with open(test_path, 'w') as f:
+                f.write(sentence + '\t' + '__label__' + str(label2id) + '\n')
+        with open(test_path, 'w', encoding='utf-8') as f:
             for d in test:
                 id, sentence, label2id = d
-                f.write('train'+str(id)+'\t'+str(sentence) +
-                        '\t'+str(label2id)+'\n')
+                f.write(sentence + '\t' + '__label__' + str(label2id) + '\n')
 
 
 if __name__ == "__main__":
     readExcel('BERTProject/data/Chinese/小样本训练语料.xlsx', 'Sheet1')
-    buildDataSet('other')
-    write_dataset_to_file('cross_validation', 5)
+    buildDataSet('others')
+    write_dataset_to_file('other_cross_validation', 5)
