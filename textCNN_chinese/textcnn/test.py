@@ -6,21 +6,21 @@ import time
 
 from model import textCNN
 import sen2inds
+import get_wordlists
 
-word2ind, ind2word = sen2inds.get_worddict('D:\\bert1\BERTProject\BERTProject\\textCNN_chinese\\wordLabel.txt')
-label_w2n, label_n2w = sen2inds.read_labelFile('D:\\bert1\BERTProject\BERTProject\\textCNN_chinese\\label.txt')
+word2ind, ind2word = get_wordlists.get_worddict()
+label_w2n, label_n2w = sen2inds.read_labelFile('D:\pathon\work\BERTProject-master\\textCNN_chinese\model_save\label.txt')
 
 textCNN_param = {
     'vocab_size': len(word2ind),
-    'embed_dim': 60,
+    'embed_dim': 50,
     'class_num': len(label_w2n),
-    "kernel_num": 16,
+    "kernel_num": 20,
     "kernel_size": [3, 4, 5],
     "dropout": 0.5,
 }
 
-
-def get_valData(file):
+def get_testData(file):
     datas = open(file, 'r').read().split('\n')
     datas = list(filter(None, datas))
 
@@ -38,7 +38,7 @@ def main():
     #init net
     print('init net...')
     net = textCNN(textCNN_param)
-    weightFile = 'D:\\bert1\BERTProject\BERTProject\\textCNN_chinese\model_save\\19071416_model_iter_99_10_loss_0.22.pkl'
+    weightFile = 'textCNN_chinese\model_save\\19072009_model_iter_99_loss_3.35.pkl'
     if os.path.exists(weightFile):
         print('load weight')
         net.load_state_dict(torch.load(weightFile))
@@ -52,7 +52,7 @@ def main():
 
     numAll = 0
     numRight = 0
-    testData = get_valData('D:\\bert1\BERTProject\BERTProject\\textCNN_chinese\\testdata_vec.txt')
+    testData = get_testData('textCNN_chinese\model_save\\testdata_vec.txt')
     for data in testData:
         numAll += 1
         data = data.split(',')
@@ -64,7 +64,7 @@ def main():
         if label_pre == label and score > -100:
             numRight += 1
         if numAll % 10 == 0:
-            print('Accuracy:{}({}/{})'.format(numRight / numAll, numRight, numAll))
+            print('Accuracy:{}({}/{})'.format(100 * numRight / numAll, numRight, numAll))
 
 
 if __name__ == "__main__":
