@@ -1,3 +1,4 @@
+from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -15,10 +16,9 @@ import unicodedata
 #import torch.cuda
 
 
+def flatten(l): return [item for sublist in l for item in sublist]
 
-flatten = lambda l: [item for sublist in l for item in sublist]
 
-from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence
 random.seed(1024)
 
 USE_CUDA = torch.cuda.is_available()
@@ -29,6 +29,7 @@ torch.device('cuda')
 FloatTensor = torch.cuda.FloatTensor if USE_CUDA else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if USE_CUDA else torch.LongTensor
 ByteTensor = torch.cuda.ByteTensor if USE_CUDA else torch.ByteTensor
+
 
 def getBatch(batch_size, train_data):
     random.shuffle(train_data)
@@ -44,6 +45,7 @@ def getBatch(batch_size, train_data):
     if eindex >= len(train_data):
         batch = train_data[sindex:]
         yield batch
+
 
 def pad_to_batch(batch, w_to_ix): # for bAbI dataset
     fact,q,a = list(zip(*batch))
@@ -84,9 +86,12 @@ def pad_to_batch(batch, w_to_ix): # for bAbI dataset
 
     return facts, fact_masks, questions, question_masks, answers
 
+
 def prepare_sequence(seq, to_index):
-    idxs = list(map(lambda w: to_index[w] if to_index.get(w) is not None else to_index["<UNK>"], seq))
+    idxs = list(map(lambda w: to_index[w] if to_index.get(
+        w) is not None else to_index["<UNK>"], seq))
     return Variable(LongTensor(idxs))
+
 
 def ATIS_data_load(path):
     try:
@@ -101,57 +106,66 @@ def ATIS_data_load(path):
         for d in data:
             fact = []
             temp = d.split('\t')
-            stemp=temp[1].split() + ['</s>']
+            stemp = temp[1].split() + ['</s>']
             fact.append(stemp)
-            q = 'what film is playing nearby?'.replace('?', '').split(' ')[0:] + ['?']
-            a = temp[2].split() + ['</s>']
+            q = 'what film is playing nearby?'.replace(
+                '?', '').split(' ')[0:] + ['?']
+            a = temp[2].split()
             data_p.append([fact, q, a])
     except:
         print("Please check the data is right")
         return None
     return data_p
 
+
 #train_data = bAbI_data_load(r'D:\cyh\dmn11\tasks_1-20_v1-2\en-10k\qa5_three-arg-relations_train.txt')
-train_data = ATIS_data_load(r'data/atis/train.tsv')
+train_data = ATIS_data_load(r'data\\atis\\train.tsv')
 
 train_data[0]
 
-fact,q,a = list(zip(*train_data))
+fact, q, a = list(zip(*train_data))
 
-vocab = list(set(flatten(flatten(fact)) + flatten(q) + flatten(a)))
-#print(vocab)
-word2index={'<PAD>': 0, '<UNK>': 1, '<s>': 2, '</s>': 3}
-#print(word2index.items())
+vocab = list(set(flatten(flatten(fact)) + flatten(q)))
+# print(vocab)
+word2index = {'<PAD>': 0, '<UNK>': 1, '<s>': 2, '</s>': 3}
+# print(word2index.items())
 for vo in vocab:
     if word2index.get(vo) is None:
         word2index[vo] = len(word2index)
-index2word = {v:k for k, v in word2index.items()}
+index2word = {v: k for k, v in word2index.items()}
 len(word2index)
-
+labels = list(set(flatten(a)))
+label2index = {'<UNK>': 26}
+for vo in labels:
+    if label2index.get(vo) is None:
+        label2index[vo] = len(label2index)
+index2label = {v: k for k, v in label2index.items()}
 for t in train_data:
-    for i,fact in enumerate(t[0]):
+    for i, fact in enumerate(t[0]):
         t[0][i] = prepare_sequence(fact, word2index).view(1, -1)
 
     t[1] = prepare_sequence(t[1], word2index).view(1, -1)
-    t[2] = prepare_sequence(t[2], word2index).view(1, -1)
+    t[2] = prepare_sequence(t[2], label2index).view(1, -1)
+
 
 class DMN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, dropout_p=0.1):
         super(DMN, self).__init__()
 
         self.hidden_size = hidden_size
-        self.embed = nn.Embedding(input_size, hidden_size, padding_idx=0) #sparse=True)
+        self.embed = nn.Embedding(
+            input_size, hidden_size, padding_idx=0)  # sparse=True)
         self.input_gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
         self.question_gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
 
         self.gate = nn.Sequential(
-                            nn.Linear(hidden_size * 4, hidden_size),
-                            nn.Tanh(),
-                            nn.Linear(hidden_size, 1),
-                            nn.Sigmoid()
-                        )
+            nn.Linear(hidden_size * 4, hidden_size),
+            nn.Tanh(),
+            nn.Linear(hidden_size, 1),
+            nn.Sigmoid()
+        )
 
-        self.attention_grucell =  nn.GRUCell(hidden_size, hidden_size)
+        self.attention_grucell = nn.GRUCell(hidden_size, hidden_size)
         self.memory_grucell = nn.GRUCell(hidden_size, hidden_size)
         self.answer_grucell = nn.GRUCell(hidden_size * 2, hidden_size)
         self.answer_fc = nn.Linear(hidden_size, output_size)
@@ -166,17 +180,23 @@ class DMN(nn.Module):
         nn.init.xavier_uniform_(self.embed.state_dict()['weight'])
 
         for name, param in self.input_gru.state_dict().items():
-            if 'weight' in name: nn.init.xavier_normal_(param)
+            if 'weight' in name:
+                nn.init.xavier_normal_(param)
         for name, param in self.question_gru.state_dict().items():
-            if 'weight' in name: nn.init.xavier_normal_(param)
+            if 'weight' in name:
+                nn.init.xavier_normal_(param)
         for name, param in self.gate.state_dict().items():
-            if 'weight' in name: nn.init.xavier_normal_(param)
+            if 'weight' in name:
+                nn.init.xavier_normal_(param)
         for name, param in self.attention_grucell.state_dict().items():
-            if 'weight' in name: nn.init.xavier_normal_(param)
+            if 'weight' in name:
+                nn.init.xavier_normal_(param)
         for name, param in self.memory_grucell.state_dict().items():
-            if 'weight' in name: nn.init.xavier_normal_(param)
+            if 'weight' in name:
+                nn.init.xavier_normal_(param)
         for name, param in self.answer_grucell.state_dict().items():
-            if 'weight' in name: nn.init.xavier_normal_(param)
+            if 'weight' in name:
+                nn.init.xavier_normal_(param)
 
         nn.init.xavier_normal_(self.answer_fc.state_dict()['weight'])
         self.answer_fc.bias.data.fill_(0)
@@ -189,7 +209,7 @@ class DMN(nn.Module):
         question_masks : (B,T_Q) / ByteTensor # batch_size, question_length
         """
         # Input Module
-        C = [] # encoded facts
+        C = []  # encoded facts
         for fact, fact_mask in zip(facts, fact_masks):
             embeds = self.embed(fact)
             if is_training:
@@ -198,13 +218,14 @@ class DMN(nn.Module):
             outputs, hidden = self.input_gru(embeds, hidden)
             real_hidden = []
 
-            for i, o in enumerate(outputs): # B,T,D
+            for i, o in enumerate(outputs):  # B,T,D
                 real_length = fact_mask[i].data.tolist().count(0)
                 real_hidden.append(o[real_length - 1])
 
-            C.append(torch.cat(real_hidden).view(fact.size(0), -1).unsqueeze(0))
+            C.append(torch.cat(real_hidden).view(
+                fact.size(0), -1).unsqueeze(0))
 
-        encoded_facts = torch.cat(C) # B,T_C,D
+        encoded_facts = torch.cat(C)  # B,T_C,D
 
         # Question Module
         embeds = self.embed(questions)
@@ -215,44 +236,54 @@ class DMN(nn.Module):
 
         if isinstance(question_masks, torch.autograd.Variable):
             real_question = []
-            for i, o in enumerate(outputs): # B,T,D
+            for i, o in enumerate(outputs):  # B,T,D
                 real_length = question_masks[i].data.tolist().count(0)
                 real_question.append(o[real_length - 1])
-            encoded_question = torch.cat(real_question).view(questions.size(0), -1) # B,D
-        else: # for inference mode
-            encoded_question = hidden.squeeze(0) # B,D
+            encoded_question = torch.cat(real_question).view(
+                questions.size(0), -1)  # B,D
+        else:  # for inference mode
+            encoded_question = hidden.squeeze(0)  # B,D
 
         # Episodic Memory Module
         memory = encoded_question
         T_C = encoded_facts.size(1)
         B = encoded_facts.size(0)
         for i in range(episodes):
-            hidden = self.init_hidden(encoded_facts.transpose(0, 1)[0]).squeeze(0) # B,D
+            hidden = self.init_hidden(
+                encoded_facts.transpose(0, 1)[0]).squeeze(0)  # B,D
             for t in range(T_C):
-                #TODO: fact masking
-                #TODO: gate function => softmax
+                # TODO: fact masking
+                # TODO: gate function => softmax
                 z = torch.cat([
-                                    encoded_facts.transpose(0, 1)[t] * encoded_question, # B,D , element-wise product
-                                    encoded_facts.transpose(0, 1)[t] * memory, # B,D , element-wise product
-                                    torch.abs(encoded_facts.transpose(0,1)[t] - encoded_question), # B,D
-                                    torch.abs(encoded_facts.transpose(0,1)[t] - memory) # B,D
-                                ], 1)
-                g_t = self.gate(z) # B,1 scalar
-                hidden = g_t * self.attention_grucell(encoded_facts.transpose(0, 1)[t], hidden) + (1 - g_t) * hidden
+                    # B,D , element-wise product
+                    encoded_facts.transpose(0, 1)[t] * encoded_question,
+                    # B,D , element-wise product
+                    encoded_facts.transpose(0, 1)[t] * memory,
+                    torch.abs(encoded_facts.transpose(0, 1)[
+                              t] - encoded_question),  # B,D
+                    torch.abs(encoded_facts.transpose(0, 1)[t] - memory)  # B,D
+                ], 1)
+                g_t = self.gate(z)  # B,1 scalar
+                hidden = g_t * \
+                    self.attention_grucell(encoded_facts.transpose(0, 1)[
+                                           t], hidden) + (1 - g_t) * hidden
 
             e = hidden
             memory = self.memory_grucell(e, memory)
 
         # Answer Module
         answer_hidden = memory
-        start_decode = Variable(LongTensor([[word2index['<s>']] * memory.size(0)])).transpose(0, 1)
-        y_t_1 = self.embed(start_decode).squeeze(1) # B,D
+        start_decode = Variable(LongTensor(
+            [[word2index['<s>']] * memory.size(0)])).transpose(0, 1)
+        y_t_1 = self.embed(start_decode).squeeze(1)  # B,D
 
         decodes = []
         for t in range(num_decode):
-            answer_hidden = self.answer_grucell(torch.cat([y_t_1, encoded_question], 1), answer_hidden)
-            decodes.append(F.log_softmax(self.answer_fc(answer_hidden),1))
+            answer_hidden = self.answer_grucell(
+                torch.cat([y_t_1, encoded_question], 1), answer_hidden)
+            decodes.append(F.log_softmax(self.answer_fc(answer_hidden), 1))
         return torch.cat(decodes, 1).view(B * num_decode, -1)
+
 
 HIDDEN_SIZE = 80
 BATCH_SIZE = 64
@@ -274,11 +305,13 @@ for epoch in range(EPOCH):
     if EARLY_STOPPING:
         break
 
-    for i,batch in enumerate(getBatch(BATCH_SIZE, train_data)):
-        facts, fact_masks, questions, question_masks, answers = pad_to_batch(batch, word2index)
+    for i, batch in enumerate(getBatch(BATCH_SIZE, train_data)):
+        facts, fact_masks, questions, question_masks, answers = pad_to_batch(
+            batch, word2index)
 
         model.zero_grad()
-        pred = model(facts, fact_masks, questions, question_masks, answers.size(1), NUM_EPISODE, True)
+        pred = model(facts, fact_masks, questions, question_masks,
+                     answers.size(1), NUM_EPISODE, True)
         loss = loss_function(pred, answers.view(-1))
         # losses.append(loss.data.tolist()[0])
         losses.append(loss.item())
@@ -287,7 +320,8 @@ for epoch in range(EPOCH):
         optimizer.step()
 
         if i % 100 == 0:
-            print("[%d/%d] mean_loss : %0.2f" %(epoch, EPOCH, np.mean(losses)))
+            print("[%d/%d] mean_loss : %0.2f" %
+                  (epoch, EPOCH, np.mean(losses)))
 
             if np.mean(losses) < 0.01:
                 EARLY_STOPPING = True
@@ -295,39 +329,45 @@ for epoch in range(EPOCH):
                 break
             losses = []
 
-def pad_to_fact(fact, x_to_ix): # this is for inference
+
+def pad_to_fact(fact, x_to_ix):  # this is for inference
 
     max_x = max([s.size(1) for s in fact])
     x_p = []
     for i in range(len(fact)):
         if fact[i].size(1) < max_x:
-            x_p.append(torch.cat([fact[i], Variable(LongTensor([x_to_ix['<PAD>']] * (max_x - fact[i].size(1)))).view(1, -1)], 1))
+            x_p.append(torch.cat([fact[i], Variable(LongTensor(
+                [x_to_ix['<PAD>']] * (max_x - fact[i].size(1)))).view(1, -1)], 1))
         else:
             x_p.append(fact[i])
 
     fact = torch.cat(x_p)
-    fact_mask = torch.cat([Variable(ByteTensor(tuple(map(lambda s: s ==0, t.data))), volatile=False) for t in fact]).view(fact.size(0), -1)
+    fact_mask = torch.cat([Variable(ByteTensor(tuple(map(
+        lambda s: s == 0, t.data))), volatile=False) for t in fact]).view(fact.size(0), -1)
     return fact, fact_mask
 
-test_data = ATIS_data_load(r'data/atis/test.tsv')
+
+test_data = ATIS_data_load(r'data\\atis\\test.tsv')
 
 for t in test_data:
     for i, fact in enumerate(t[0]):
         t[0][i] = prepare_sequence(fact, word2index).view(1, -1)
 
     t[1] = prepare_sequence(t[1], word2index).view(1, -1)
-    t[2] = prepare_sequence(t[2], word2index).view(1, -1)
+    t[2] = prepare_sequence(t[2], label2index).view(1, -1)
 
 accuracy = 0
 
 for t in test_data:
     fact, fact_mask = pad_to_fact(t[0], word2index)
     question = t[1]
-    question_mask = Variable(ByteTensor([0] * t[1].size(1)), volatile=False).unsqueeze(0)
+    question_mask = Variable(ByteTensor(
+        [0] * t[1].size(1)), volatile=False).unsqueeze(0)
     answer = t[2].squeeze(0)
 
     model.zero_grad()
-    pred = model([fact], [fact_mask], question, question_mask, answer.size(0), NUM_EPISODE)
+    pred = model([fact], [fact_mask], question,
+                 question_mask, answer.size(0), NUM_EPISODE)
     if pred.max(1)[1].data.tolist() == answer.data.tolist():
         accuracy += 1
 
@@ -336,17 +376,23 @@ print(accuracy/len(test_data) * 100)
 t = random.choice(test_data)
 fact, fact_mask = pad_to_fact(t[0], word2index)
 question = t[1]
-question_mask = Variable(ByteTensor([0] * t[1].size(1)), volatile=False).unsqueeze(0)
+question_mask = Variable(ByteTensor(
+    [0] * t[1].size(1)), volatile=False).unsqueeze(0)
 answer = t[2].squeeze(0)
 
 model.zero_grad()
-pred = model([fact], [fact_mask], question, question_mask, answer.size(0), NUM_EPISODE)
+pred = model([fact], [fact_mask], question,
+             question_mask, answer.size(0), NUM_EPISODE)
 
 
 print("Facts : ")
-print('\n'.join([' '.join(list(map(lambda x: index2word[x],f))) for f in fact.data.tolist()]))
+print('\n'.join([' '.join(list(map(lambda x: index2word[x], f)))
+                 for f in fact.data.tolist()]))
 print("")
-print("Question : ",' '.join(list(map(lambda x: index2word[x], question.data.tolist()[0]))))
+print("Question : ", ' '.join(
+    list(map(lambda x: index2word[x], question.data.tolist()[0]))))
 print("")
-print("Answer : ",' '.join(list(map(lambda x: index2word[x], answer.data.tolist()))))
-print("Prediction : ",' '.join(list(map(lambda x: index2word[x], pred.max(1)[1].data.tolist()))))
+print("Answer : ", ' '.join(
+    list(map(lambda x: index2word[x], answer.data.tolist()))))
+print("Prediction : ", ' '.join(
+    list(map(lambda x: index2word[x], pred.max(1)[1].data.tolist()))))
