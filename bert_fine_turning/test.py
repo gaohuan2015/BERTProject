@@ -8,7 +8,7 @@ from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
 def test(model, processor, args, label_list, tokenizer, device):
     test_examples = processor.get_test_examples(args.test_data_dir)
-    with open(os.path.join(args.test_data_dir, "test.tsv"), 'r') as f:
+    with open(args.test_data_dir, 'r') as f:
         test_list = []
         for line in f:
             _, text_a, label = line.strip('\n').split('\t')
