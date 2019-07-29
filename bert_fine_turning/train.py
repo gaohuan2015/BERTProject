@@ -42,13 +42,13 @@ parser.add_argument("--eval_batch_size", default=1, type=int, help="验证时bat
 parser.add_argument("--train_batch_size", default=32, type=int, help="训练时batch大小")
 parser.add_argument("--no_cuda", default=False, action='store_true', help="用不用CUDA")
 parser.add_argument("--learning_rate", default=6e-5, type=float, help="Adam初始学习步长")
-parser.add_argument("--train_data_dir", default='Cross/NO.4', type=str, help="训练数据读入的路径")
-parser.add_argument("--test_data_dir", default='Cross/NO.4', type=str, help="测试数据读入的路径")
-parser.add_argument("--num_train_epochs", default=50.0, type=float, help="训练的epochs次数")
+parser.add_argument("--train_data_dir", default='/home/user/pycharmprojects/duanxuxiang/BERTProject/enhance_train data/enhance_train0.csv', type=str, help="训练数据读入的路径")
+parser.add_argument("--test_data_dir", default='/home/user/pycharmprojects/duanxuxiang/BERTProject/data/cross validation/cross_validation_test0.csv', type=str, help="测试数据读入的路径")
+parser.add_argument("--num_train_epochs", default=48.0, type=float, help="训练的epochs次数")
 parser.add_argument("--do_lower_case", default=True, action='store_true', help="英文字符的大小写转换")
-parser.add_argument("--loss_function", default='labelsmoothing', type=str, help="损失函数类型")
+parser.add_argument("--loss_function", default='cross_entropy', type=str, help="损失函数类型")
 parser.add_argument("--bert_model", default='bert-base-chinese', type=str, help="选择bert模型的类型")
-parser.add_argument("--classifier_model", default='Classifier_joint_model', type=str, help="选择bert的fine tune模型的类型")
+parser.add_argument("--classifier_model", default='Classifier_sep_model', type=str, help="选择bert的fine tune模型的类型")
 parser.add_argument("--local_rank", default=-1, type=int, help="local_rank for distributed training on gpus.")
 parser.add_argument("--warmup_proportion", default=0.1, type=float, help="Proportion of train to perf linear lr")
 args = parser.parse_args()
@@ -108,12 +108,12 @@ train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args
 print("\n********************** Start Trainning **********************")
 model.train()
 loss_func = LossFunctions[args.loss_function]
-total_loss = 0
 for _ in trange(int(args.num_train_epochs), desc="Epoch"):
+    total_loss = 0
     for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
         batch = tuple(t.to(device) for t in batch)
         input_ids, input_mask, segment_ids, label_ids = batch
-        model.zero_grad()
+        # model.zero_grad()
         if args.classifier_model == 'Classifier_joint_model':
             pred_base, pred_pad, pred_textcnn = model(input_ids, segment_ids, input_mask)
             loss_base = loss_func(pred_base.view(-1, num_labels), label_ids.view(-1))
@@ -123,16 +123,18 @@ for _ in trange(int(args.num_train_epochs), desc="Epoch"):
         else:
             pred = model(input_ids, segment_ids, input_mask)
             loss = loss_func(pred.view(-1, num_labels), label_ids.view(-1))
-        if n_gpu > 1: loss = loss.mean()
+        # if n_gpu > 1: loss = loss.mean()
         loss.backward()
-        optimizer.step()
+        if (step + 1) % 16 == 0:
+            optimizer.step()
+            optimizer.zero_grad()
         total_loss += loss.data
     print("\n[Trainning]\t[Epoch; %d]\t[Iteration: %d]\t[Loss: %f]" % (_, step, total_loss))
 
     # if total_loss <= 0.0075:
     #     break
     # pr = val(bert_class_model, processor, args, label_list, tokenizer, device)
-    test(model, processor, args, label_list, tokenizer, device)
+    # test(model, processor, args, label_list, tokenizer, device)
     total_loss = 0
     checkpoint = {'state_dict': model.state_dict()}
     torch.save(checkpoint, model_save_pth)

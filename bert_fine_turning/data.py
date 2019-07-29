@@ -49,33 +49,32 @@ class DataProcessor(object):
 
 class MyPro(DataProcessor):
     def get_train_examples(self, data_dir):
-        return self.create_examples(
-            self.read_csv(os.path.join(data_dir, "train.tsv")))
+        examples, labels = self.create_examples(self.read_csv(data_dir))
+        return examples
 
     def get_dev_examples(self, data_dir):
-        return self.create_examples(
-            self.read_csv(os.path.join(data_dir, "valid.tsv")))
+        examples, labels = self.create_examples(self.read_csv(data_dir))
+        return examples
 
     def get_test_examples(self, data_dir):
-        return self.create_examples(
-            self.read_csv(os.path.join(data_dir, "test.tsv")))
+        examples, labels = self.create_examples(self.read_csv(data_dir))
+        return examples
 
     def get_labels(self, data_dir):
-        label_list = []
-        name_id_list = self.read_csv(os.path.join(data_dir, "label2id.tsv"))
-        for name_id in name_id_list:
-            label_list.append(int(name_id[1]))
-        return label_list
+        examples, labels = self.create_examples(self.read_csv(data_dir))
+        return labels
 
     def create_examples(self, li_exam):
         examples = []
+        labels = []
         for ele in li_exam:
             guid = ele[0]
             text_a = ele[1]
             label = int(ele[2])
             examples.append(InputExample(guid=guid, text_a=text_a, label=label))
+            labels.append(label)
 
-        return examples
+        return examples, set(labels)
 
 
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, show_exp=True):
