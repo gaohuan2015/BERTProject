@@ -288,7 +288,7 @@ class DMN(nn.Module):
 HIDDEN_SIZE = 80
 BATCH_SIZE = 64
 LR = 0.001
-EPOCH = 1
+EPOCH = 10
 NUM_EPISODE = 3
 EARLY_STOPPING = False
 
@@ -392,7 +392,5 @@ print("")
 print("Question : ", ' '.join(
     list(map(lambda x: index2word[x], question.data.tolist()[0]))))
 print("")
-print("Answer : ", ' '.join(
-    list(map(lambda x: index2word[x], answer.data.tolist()))))
-print("Prediction : ", ' '.join(
-    list(map(lambda x: index2word[x], pred.max(1)[1].data.tolist()))))
+print("Answer : ".join(str(answer.data.tolist()))+'\n')
+print("Prediction : ".join(str(pred.data.tolist()))+'\n')
