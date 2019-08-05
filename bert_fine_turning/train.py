@@ -42,17 +42,17 @@ parser.add_argument("--seed", default=777, type=int, help="初始化时的随机
 parser.add_argument("--max_seq_length", default=100, type=int, help="字符串最大长度")
 parser.add_argument("--eval_batch_size", default=1,
                     type=int, help="验证时batch大小")
-parser.add_argument("--train_batch_size", default=8,
+parser.add_argument("--train_batch_size", default=16,
                     type=int, help="训练时batch大小")
 parser.add_argument("--no_cuda", default=False,
                     action='store_true', help="用不用CUDA")
 parser.add_argument("--learning_rate", default=6e-5,
                     type=float, help="Adam初始学习步长")
 parser.add_argument("--train_data_dir",
-                    default='data\cross validation\cross_validation_train4.csv', type=str, help="训练数据读入的路径")
+                    default='data/cross validation/cross_validation_train4.csv', type=str, help="训练数据读入的路径")
 parser.add_argument(
-    "--test_data_dir", default='data\cross validation\cross_validation_test4.csv', type=str, help="测试数据读入的路径")
-parser.add_argument("--num_train_epochs", default=300,
+    "--test_data_dir", default='data/cross validation/cross_validation_test4.csv', type=str, help="测试数据读入的路径")
+parser.add_argument("--num_train_epochs", default=500,
                     type=float, help="训练的epochs次数")
 parser.add_argument("--do_lower_case", default=True,
                     action='store_true', help="英文字符的大小写转换")
@@ -98,15 +98,15 @@ model1 = RCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
 model1.to(device)
 model2 = TextCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
 model2.to(device)
-model3 = Classifier_base_model(
+model3 = Classifier_sep_model(
     bertmodel, bert_output_size=768, num_labels=num_labels)
 model3.to(device)
-# model4 = TextRNN(bertmodel, bert_output_size=768, num_labels=num_labels)
-# model4.to(device)
+model4 = TextRNN(bertmodel, bert_output_size=768, num_labels=num_labels)
+model4.to(device)
 param_optimizer1 = list(model1.named_parameters())
 param_optimizer2 = list(model2.named_parameters())
 param_optimizer3 = list(model3.named_parameters())
-# param_optimizer4 = list(model4.named_parameters())
+param_optimizer4 = list(model4.named_parameters())
 no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
 optimizer_grouped_parameters1 = [
     {'params': [p for n, p in param_optimizer1 if not any(
@@ -120,10 +120,10 @@ optimizer_grouped_parameters3 = [
     {'params': [p for n, p in param_optimizer3 if not any(
         nd in n for nd in no_decay)], 'weight_decay_rate': 0.01},
     {'params': [p for n, p in param_optimizer3 if any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.0}]
-# optimizer_grouped_parameters4 = [
-#     {'params': [p for n, p in param_optimizer4 if not any(
-#         nd in n for nd in no_decay)], 'weight_decay_rate': 0.01},
-#     {'params': [p for n, p in param_optimizer4 if any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.0}]
+optimizer_grouped_parameters4 = [
+    {'params': [p for n, p in param_optimizer4 if not any(
+        nd in n for nd in no_decay)], 'weight_decay_rate': 0.01},
+    {'params': [p for n, p in param_optimizer4 if any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.0}]
 t_total = num_train_steps
 
 optimizer1 = BertAdam(optimizer_grouped_parameters1, lr=args.learning_rate,
@@ -132,12 +132,12 @@ optimizer2 = BertAdam(optimizer_grouped_parameters2, lr=args.learning_rate,
                       warmup=args.warmup_proportion, t_total=t_total, weight_decay=0.001)
 optimizer3 = BertAdam(optimizer_grouped_parameters3, lr=args.learning_rate,
                       warmup=args.warmup_proportion, t_total=t_total, weight_decay=0.001)
-# optimizer4 = BertAdam(optimizer_grouped_parameters4, lr=args.learning_rate,
-#                       warmup=args.warmup_proportion, t_total=t_total, weight_decay=0.001)
+optimizer4 = BertAdam(optimizer_grouped_parameters4, lr=args.learning_rate,
+                      warmup=args.warmup_proportion, t_total=t_total, weight_decay=0.001)
 lookahead1 = Lookahead(optimizer1, k=5, alpha=0.5)
 lookahead2 = Lookahead(optimizer2, k=5, alpha=0.5)
 lookahead3 = Lookahead(optimizer3, k=5, alpha=0.5)
-# lookahead4 = Lookahead(optimizer4, k=5, alpha=0.5)
+lookahead4 = Lookahead(optimizer4, k=5, alpha=0.5)
 train_features = convert_examples_to_features(
     train_examples, label_list, args.max_seq_length, tokenizer, show_exp=False)
 print("\n********************** Running training *********************")
@@ -164,7 +164,7 @@ train_dataloader = DataLoader(
     train_data, sampler=train_sampler, batch_size=args.train_batch_size)
 print("\n********************** Start Trainning **********************")
 model1.train()
-modellist = [model1, model2, model3]
+modellist = [model1, model2,model3,model4]
 loss_func = LossFunctions[args.loss_function]
 for _ in trange(int(args.num_train_epochs), desc="Epoch"):
     total_loss = 0
@@ -176,8 +176,8 @@ for _ in trange(int(args.num_train_epochs), desc="Epoch"):
                 torch.save(model,'TextCNN'+str(_))
             elif model_index == 2:
                 torch.save(model,'Classifier_base_model'+str(_))
-            # else:
-            #     torch.save(model,'TextRNN'+str(_))
+            else:
+                torch.save(model,'TextRNN'+str(_))
         for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
             batch = tuple(t.to(device) for t in batch)
             input_ids, input_mask, segment_ids, label_ids = batch
@@ -220,5 +220,5 @@ for _ in trange(int(args.num_train_epochs), desc="Epoch"):
 test(model1, processor, args, label_list, tokenizer, device)
 test(model2, processor, args, label_list, tokenizer, device)
 test(model3, processor, args, label_list, tokenizer, device)
-# test(model4, processor, args, label_list, tokenizer, device)
+test(model4, processor, args, label_list, tokenizer, device)
 

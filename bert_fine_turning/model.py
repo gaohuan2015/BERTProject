@@ -9,8 +9,7 @@ class TextRNN(nn.Module):
     def __init__(self,  bert, bert_output_size=768, num_labels=26):
         super(TextRNN, self).__init__()
         self.word_embeddings = bert
-        self.dropout = 0.8
-        self.lstm = nn.LSTM(768, 100, dropout=self.dropout, bidirectional=True)
+        self.lstm = nn.LSTM(768, 100,  bidirectional=True)
         self.label = nn.Linear(200, num_labels)
 
     def forward(self, input_ids, segment_ids, input_mask):
