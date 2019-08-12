@@ -26,6 +26,7 @@ from model import (
     TextCNN,
     TextRNN,
     DPCNN,
+    Seq2SeqAttention
 )
 
 
@@ -87,7 +88,8 @@ ti = time.strftime("%Y-%m-%d-%H-%M", time.localtime(time.time()))
 checkpoints_dir = "checkpoints/{}/".format(ti)
 if os.path.exists(checkpoints_dir) and os.listdir(checkpoints_dir):
     raise ValueError(
-        "Output directory ({}) already exists and is not empty.".format(checkpoints_dir)
+        "Output directory ({}) already exists and is not empty.".format(
+            checkpoints_dir)
     )
 os.makedirs(checkpoints_dir, exist_ok=True)
 model_save_pth = "checkpoints/{}/bert_classification.pth".format(ti)
@@ -108,27 +110,33 @@ LossFunctions = {
 parser = argparse.ArgumentParser()
 parser.add_argument("--seed", default=777, type=int, help="初始化时的随机数种子")
 parser.add_argument("--max_seq_length", default=100, type=int, help="字符串最大长度")
-parser.add_argument("--eval_batch_size", default=1, type=int, help="验证时batch大小")
-parser.add_argument("--train_batch_size", default=16, type=int, help="训练时batch大小")
-parser.add_argument("--no_cuda", default=False, action="store_true", help="用不用CUDA")
-parser.add_argument("--learning_rate", default=6e-5, type=float, help="Adam初始学习步长")
+parser.add_argument("--eval_batch_size", default=1,
+                    type=int, help="验证时batch大小")
+parser.add_argument("--train_batch_size", default=16,
+                    type=int, help="训练时batch大小")
+parser.add_argument("--no_cuda", default=False,
+                    action="store_true", help="用不用CUDA")
+parser.add_argument("--learning_rate", default=1e-5,
+                    type=float, help="Adam初始学习步长")
 parser.add_argument(
     "--train_data_dir",
-    default="data/cross validation/cross_validation_train1.csv",
+    default="BERTProject\data\cross validation\cross_validation_train4.csv",
     type=str,
     help="训练数据读入的路径",
 )
 parser.add_argument(
     "--test_data_dir",
-    default="data/cross validation/cross_validation_test1.csv",
+    default="BERTProject\data\cross validation\cross_validation_test4.csv",
     type=str,
     help="测试数据读入的路径",
 )
-parser.add_argument("--num_train_epochs", default=50, type=float, help="训练的epochs次数")
+parser.add_argument("--num_train_epochs", default=50,
+                    type=float, help="训练的epochs次数")
 parser.add_argument(
     "--do_lower_case", default=True, action="store_true", help="英文字符的大小写转换"
 )
-parser.add_argument("--loss_function", default="cross_entropy", type=str, help="损失函数类型")
+parser.add_argument("--loss_function",
+                    default="cross_entropy", type=str, help="损失函数类型")
 parser.add_argument(
     "--bert_model", default="bert-base-chinese", type=str, help="选择bert模型的类型"
 )
@@ -181,14 +189,15 @@ tokenizer = BertTokenizer.from_pretrained(
 )
 
 bertmodel = BertModel.from_pretrained(args.bert_model)
-model1 = RCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
-model1.to(device)
+# model1 = RCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
+# model1.to(device)
 # model2 = TextCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
 # model2.to(device)
-model3 = DPCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
+model3 = Seq2SeqAttention(bertmodel, bert_output_size=768, num_labels=num_labels)
 model3.to(device)
-model4 = TextRNN(bertmodel, bert_output_size=768, num_labels=num_labels)
-model4.to(device)
+# model4 = Seq2SeqAttention(
+#     bertmodel, bert_output_size=768, num_labels=num_labels)
+# model4.to(device)
 param_optimizer3 = list(model3.named_parameters())
 no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
 optimizer_grouped_parameters3 = [
@@ -221,12 +230,15 @@ print("[Train: %d]" % len(train_examples))
 print("[Batch size: %d]" % args.train_batch_size)
 print("[Num steps: %d]" % num_train_steps)
 
-all_input_ids = torch.tensor([f.input_ids for f in train_features], dtype=torch.long)
-all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
+all_input_ids = torch.tensor(
+    [f.input_ids for f in train_features], dtype=torch.long)
+all_input_mask = torch.tensor(
+    [f.input_mask for f in train_features], dtype=torch.long)
 all_segment_ids = torch.tensor(
     [f.segment_ids for f in train_features], dtype=torch.long
 )
-all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
+all_label_ids = torch.tensor(
+    [f.label_id for f in train_features], dtype=torch.long)
 print("\n********************** Preparing Data ***********************")
 train_data = TensorDataset(
     all_input_ids, all_input_mask, all_segment_ids, all_label_ids
@@ -239,8 +251,10 @@ train_dataloader = DataLoader(
     train_data, sampler=train_sampler, batch_size=args.train_batch_size
 )
 print("\n********************** Start Trainning **********************")
+# model1.train()
 model3.train()
-modellist = [model1, model4]
+# model4.train()
+# modellist = [model1, model4]
 loss_func = LossFunctions[args.loss_function]
 trainloss = AverageMeter()
 updateEMA = EMA(0.5, model3)
@@ -248,41 +262,44 @@ updateEMA.setup()
 for _ in trange(int(args.num_train_epochs), desc="Epoch"):
     total_loss = 0
     for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
-        soft_labels = 0
-        for model_index, model in enumerate(modellist):
-            batch = tuple(t.to(device) for t in batch)
-            input_ids, input_mask, segment_ids, label_ids = batch
-            pred = model(input_ids, segment_ids, input_mask)
-            soft_labels += F.softmax(pred)
+        # soft_labels = 0
+        # for model_index, model in enumerate(modellist):
+        #     batch = tuple(t.to(device) for t in batch)
+        #     input_ids, input_mask, segment_ids, label_ids = batch
+        #     pred = model(input_ids, segment_ids, input_mask)
+        #     soft_labels += pred
         batch = tuple(t.to(device) for t in batch)
         input_ids, input_mask, segment_ids, label_ids = batch
         pred = model3(input_ids, segment_ids, input_mask)
         loss = loss_func(pred.view(-1, num_labels), label_ids.view(-1))
-        kd_loss = (
-            F.kl_div(
-                F.log_softmax(pred.view(-1, num_labels).float(), 1),
-                soft_labels / len(modellist),
-            )
-            * num_labels
-        )
-        loss = loss + kd_loss
-        trainloss.update(loss, pred.size(0))
+        # kd_loss = (
+        #     F.kl_div(
+        #         F.log_softmax(pred.view(-1, num_labels).float(), 1),
+        #         F.softmax(soft_labels / len(modellist), dim=-1),
+        #     )
+        #     * num_labels
+        # )
+        # loss = loss + kd_loss
+        # trainloss.update(loss, pred.size(0))
         # if n_gpu > 1: loss = loss.mean()
         loss.backward()
         # if (step + 1) % 16 == 0:
         # torch.nn.utils.clip_grad_norm_(model3.parameters(), 0.1)
-        lookahead3.step()
-        lookahead3.zero_grad()
-        updateEMA.update()
+        optimizer3.step()
+        optimizer3.zero_grad()
+        # updateEMA.update()
         total_loss += loss.data
     print(
         "\n[Trainning]\t[Epoch; %d]\t[Iteration: %d]\t[Loss: %f]"
         % (_, step, total_loss)
     )
     total_loss = 0
-test(model1, processor, args, label_list, tokenizer, device)
+    # test(model1, processor, args, label_list, tokenizer, device)
 # test(model2, processor, args, label_list, tokenizer, device)
-test(model3, processor, args, label_list, tokenizer, device)
-test(model4, processor, args, label_list, tokenizer, device)
-ensembletest(model1, model3, model4, processor, args, label_list, tokenizer, device)
-
+    test(model3, processor, args, label_list, tokenizer, device)
+    # test(model4, processor, args, label_list, tokenizer, device)
+    # model1.train()
+    model3.train()
+    # model4.train()
+    # ensembletest(model1, model3, model4, processor,
+    #              args, label_list, tokenizer, device)
