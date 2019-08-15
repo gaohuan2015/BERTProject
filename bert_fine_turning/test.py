@@ -8,7 +8,7 @@ from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
 def test(model, processor, args, label_list, tokenizer, device):
     test_examples = processor.get_test_examples(args.test_data_dir)
-    with open(args.test_data_dir, "r") as f:
+    with open(args.test_data_dir, "r", encoding='utf-8') as f:
         test_list = []
         for line in f:
             _, text_a, label = line.strip("\n").split("\t")
@@ -16,14 +16,16 @@ def test(model, processor, args, label_list, tokenizer, device):
     test_features = convert_examples_to_features(
         test_examples, label_list, args.max_seq_length, tokenizer, show_exp=False
     )
-    all_input_ids = torch.tensor([f.input_ids for f in test_features], dtype=torch.long)
+    all_input_ids = torch.tensor(
+        [f.input_ids for f in test_features], dtype=torch.long)
     all_input_mask = torch.tensor(
         [f.input_mask for f in test_features], dtype=torch.long
     )
     all_segment_ids = torch.tensor(
         [f.segment_ids for f in test_features], dtype=torch.long
     )
-    all_label_ids = torch.tensor([f.label_id for f in test_features], dtype=torch.long)
+    all_label_ids = torch.tensor(
+        [f.label_id for f in test_features], dtype=torch.long)
     test_data = TensorDataset(
         all_input_ids, all_input_mask, all_segment_ids, all_label_ids
     )
@@ -90,7 +92,7 @@ def ensembletest(
     device,
 ):
     test_examples = processor.get_test_examples(args.test_data_dir)
-    with open(args.test_data_dir, "r") as f:
+    with open(args.test_data_dir, "r", 'utf-8') as f:
         test_list = []
         for line in f:
             _, text_a, label = line.strip("\n").split("\t")
@@ -98,14 +100,16 @@ def ensembletest(
     test_features = convert_examples_to_features(
         test_examples, label_list, args.max_seq_length, tokenizer, show_exp=False
     )
-    all_input_ids = torch.tensor([f.input_ids for f in test_features], dtype=torch.long)
+    all_input_ids = torch.tensor(
+        [f.input_ids for f in test_features], dtype=torch.long)
     all_input_mask = torch.tensor(
         [f.input_mask for f in test_features], dtype=torch.long
     )
     all_segment_ids = torch.tensor(
         [f.segment_ids for f in test_features], dtype=torch.long
     )
-    all_label_ids = torch.tensor([f.label_id for f in test_features], dtype=torch.long)
+    all_label_ids = torch.tensor(
+        [f.label_id for f in test_features], dtype=torch.long)
     test_data = TensorDataset(
         all_input_ids, all_input_mask, all_segment_ids, all_label_ids
     )
@@ -133,6 +137,7 @@ def ensembletest(
             output1 = model1(input_ids, segment_ids, input_mask)
             output2 = model2(input_ids, segment_ids, input_mask)
             output3 = model3(input_ids, segment_ids, input_mask)
+<<<<<<< HEAD
             output4 = model4(input_ids, segment_ids, input_mask)
             output5 = model5(input_ids, segment_ids, input_mask)
             labpre = (
@@ -142,6 +147,10 @@ def ensembletest(
                 + F.softmax(output4, dim=-1)
                 + F.softmax(output5, dim=-1)
             )
+=======
+            labpre = F.softmax(output1, dim=-1) + F.softmax(output2,
+                                                            dim=-1) + F.softmax(output3, dim=-1)
+>>>>>>> 58fe44bb70f483649b9a78722b9838b9f05aa31e
             # labpre, ind = torch.max(output_base,dim=-1)
             # labpre1, ind1 = torch.max(output_pad,dim=-1)
             # if labpre >= labpre1:
@@ -173,14 +182,16 @@ def val(model, processor, args, label_list, tokenizer, device):
     eval_features = convert_examples_to_features(
         eval_examples, label_list, args.max_seq_length, tokenizer, show_exp=False
     )
-    all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
+    all_input_ids = torch.tensor(
+        [f.input_ids for f in eval_features], dtype=torch.long)
     all_input_mask = torch.tensor(
         [f.input_mask for f in eval_features], dtype=torch.long
     )
     all_segment_ids = torch.tensor(
         [f.segment_ids for f in eval_features], dtype=torch.long
     )
-    all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
+    all_label_ids = torch.tensor(
+        [f.label_id for f in eval_features], dtype=torch.long)
     eval_data = TensorDataset(
         all_input_ids, all_input_mask, all_segment_ids, all_label_ids
     )

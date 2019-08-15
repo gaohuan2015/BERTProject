@@ -3,7 +3,8 @@ import csv
 import codecs
 import logging
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                    datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +40,7 @@ class DataProcessor(object):
     @classmethod
     def read_csv(cls, input_file):
         li_exam = []
-        with codecs.open(input_file, 'r', 'utf-8') as f:
+        with codecs.open(input_file, 'r', encoding='utf-8') as f:
             csv_reader = csv.reader(f)
             for line in csv_reader:
                 line = list(line[0].split('\t'))
@@ -71,7 +72,8 @@ class MyPro(DataProcessor):
             guid = ele[0]
             text_a = ele[1]
             label = int(ele[2])
-            examples.append(InputExample(guid=guid, text_a=text_a, label=label))
+            examples.append(InputExample(
+                guid=guid, text_a=text_a, label=label))
             labels.append(label)
 
         return examples, set(labels)
@@ -93,10 +95,13 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     for (ex_index, example) in enumerate(examples):
         tokens_a = tokenizer.tokenize(example.text_a)
         tokens_b = None
-        if example.text_b: tokens_b = tokenizer.tokenize(example.text_b)
-        if tokens_b: _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
+        if example.text_b:
+            tokens_b = tokenizer.tokenize(example.text_b)
+        if tokens_b:
+            _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
         else:
-            if len(tokens_a) > max_seq_length - 2: tokens_a = tokens_a[0:(max_seq_length - 2)]
+            if len(tokens_a) > max_seq_length - 2:
+                tokens_a = tokens_a[0:(max_seq_length - 2)]
         tokens = []
         segment_ids = []
         tokens.append("[CLS]")
@@ -128,11 +133,15 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             logger.info("\n*** Example ***")
             logger.info("guid: %s" % (example.guid))
             logger.info("tokens: %s" % " ".join([str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+            logger.info("input_ids: %s" %
+                        " ".join([str(x) for x in input_ids]))
+            logger.info("input_mask: %s" %
+                        " ".join([str(x) for x in input_mask]))
+            logger.info("segment_ids: %s" %
+                        " ".join([str(x) for x in segment_ids]))
             logger.info("label: %s (id = %d)" % (example.label, label_id))
-        features.append(InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=label_id))
+        features.append(InputFeatures(
+            input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=label_id))
     return features
 
 
@@ -140,6 +149,9 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     """Truncates a sequence pair in place to the maximum length."""
     while True:
         total_length = len(tokens_a) + len(tokens_b)
-        if total_length <= max_length: break
-        if len(tokens_a) > len(tokens_b): tokens_a.pop()
-        else: tokens_b.pop()
+        if total_length <= max_length:
+            break
+        if len(tokens_a) > len(tokens_b):
+            tokens_a.pop()
+        else:
+            tokens_b.pop()
