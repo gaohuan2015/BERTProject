@@ -78,7 +78,16 @@ def test(model, processor, args, label_list, tokenizer, device):
 
 
 def ensembletest(
-    model1, model2, model3, processor, args, label_list, tokenizer, device
+    model1,
+    model2,
+    model3,
+    model4,
+    model5,
+    processor,
+    args,
+    label_list,
+    tokenizer,
+    device,
 ):
     test_examples = processor.get_test_examples(args.test_data_dir)
     with open(args.test_data_dir, "r") as f:
@@ -107,6 +116,8 @@ def ensembletest(
     model1.eval()
     model2.eval()
     model3.eval()
+    model4.eval()
+    model5.eval()
     predict = np.zeros((0,), dtype=np.int32)
     gt = np.zeros((0,), dtype=np.int32)
     i = 0
@@ -122,7 +133,15 @@ def ensembletest(
             output1 = model1(input_ids, segment_ids, input_mask)
             output2 = model2(input_ids, segment_ids, input_mask)
             output3 = model3(input_ids, segment_ids, input_mask)
-            labpre = F.softmax(output1, dim=-1) + F.softmax(output2, dim=-1)  + F.softmax(output3, dim=-1) 
+            output4 = model4(input_ids, segment_ids, input_mask)
+            output5 = model5(input_ids, segment_ids, input_mask)
+            labpre = (
+                F.softmax(output1, dim=-1)
+                + F.softmax(output2, dim=-1)
+                + F.softmax(output3, dim=-1)
+                + F.softmax(output4, dim=-1)
+                + F.softmax(output5, dim=-1)
+            )
             # labpre, ind = torch.max(output_base,dim=-1)
             # labpre1, ind1 = torch.max(output_pad,dim=-1)
             # if labpre >= labpre1:

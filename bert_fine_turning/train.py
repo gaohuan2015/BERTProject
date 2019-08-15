@@ -109,22 +109,22 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--seed", default=777, type=int, help="初始化时的随机数种子")
 parser.add_argument("--max_seq_length", default=100, type=int, help="字符串最大长度")
 parser.add_argument("--eval_batch_size", default=1, type=int, help="验证时batch大小")
-parser.add_argument("--train_batch_size", default=16, type=int, help="训练时batch大小")
+parser.add_argument("--train_batch_size", default=8, type=int, help="训练时batch大小")
 parser.add_argument("--no_cuda", default=False, action="store_true", help="用不用CUDA")
-parser.add_argument("--learning_rate", default=6e-5, type=float, help="Adam初始学习步长")
+parser.add_argument("--learning_rate", default=3e-5, type=float, help="Adam初始学习步长")
 parser.add_argument(
     "--train_data_dir",
-    default="data/cross validation/cross_validation_train1.csv",
+    default="data/cross validation/cross_validation_train4.csv",
     type=str,
     help="训练数据读入的路径",
 )
 parser.add_argument(
     "--test_data_dir",
-    default="data/cross validation/cross_validation_test1.csv",
+    default="data/cross validation/cross_validation_test4.csv",
     type=str,
     help="测试数据读入的路径",
 )
-parser.add_argument("--num_train_epochs", default=50, type=float, help="训练的epochs次数")
+parser.add_argument("--num_train_epochs", default=100, type=float, help="训练的epochs次数")
 parser.add_argument(
     "--do_lower_case", default=True, action="store_true", help="英文字符的大小写转换"
 )
@@ -183,12 +183,14 @@ tokenizer = BertTokenizer.from_pretrained(
 bertmodel = BertModel.from_pretrained(args.bert_model)
 model1 = RCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
 model1.to(device)
-# model2 = TextCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
-# model2.to(device)
-model3 = DPCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
+model2 = Classifier_base_model(bertmodel, bert_output_size=768, num_labels=num_labels)
+model2.to(device)
+model3 = Classifier_pad_model(bertmodel, bert_output_size=768, num_labels=num_labels)
 model3.to(device)
 model4 = TextRNN(bertmodel, bert_output_size=768, num_labels=num_labels)
 model4.to(device)
+model5 = TextCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
+model5.to(device)
 param_optimizer3 = list(model3.named_parameters())
 no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
 optimizer_grouped_parameters3 = [
@@ -239,23 +241,25 @@ train_dataloader = DataLoader(
     train_data, sampler=train_sampler, batch_size=args.train_batch_size
 )
 print("\n********************** Start Trainning **********************")
+model1.train()
+model2.train()
 model3.train()
-modellist = [model1, model4]
+model4.train()
+model5.train()
+modellist = [model1, model2, model4, model5]
 loss_func = LossFunctions[args.loss_function]
 trainloss = AverageMeter()
-updateEMA = EMA(0.5, model3)
+updateEMA = EMA(0.2, model3)
 updateEMA.setup()
 for _ in trange(int(args.num_train_epochs), desc="Epoch"):
     total_loss = 0
     for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
         soft_labels = 0
-        for model_index, model in enumerate(modellist):
-            batch = tuple(t.to(device) for t in batch)
-            input_ids, input_mask, segment_ids, label_ids = batch
-            pred = model(input_ids, segment_ids, input_mask)
-            soft_labels += F.softmax(pred)
         batch = tuple(t.to(device) for t in batch)
         input_ids, input_mask, segment_ids, label_ids = batch
+        for model_index, model in enumerate(modellist):
+            pred = model(input_ids, segment_ids, input_mask)
+            soft_labels += F.softmax(pred)
         pred = model3(input_ids, segment_ids, input_mask)
         loss = loss_func(pred.view(-1, num_labels), label_ids.view(-1))
         kd_loss = (
@@ -270,7 +274,7 @@ for _ in trange(int(args.num_train_epochs), desc="Epoch"):
         # if n_gpu > 1: loss = loss.mean()
         loss.backward()
         # if (step + 1) % 16 == 0:
-        # torch.nn.utils.clip_grad_norm_(model3.parameters(), 0.1)
+        torch.nn.utils.clip_grad_norm_(model3.parameters(), 0.01)
         lookahead3.step()
         lookahead3.zero_grad()
         updateEMA.update()
@@ -280,9 +284,25 @@ for _ in trange(int(args.num_train_epochs), desc="Epoch"):
         % (_, step, total_loss)
     )
     total_loss = 0
-test(model1, processor, args, label_list, tokenizer, device)
-# test(model2, processor, args, label_list, tokenizer, device)
-test(model3, processor, args, label_list, tokenizer, device)
-test(model4, processor, args, label_list, tokenizer, device)
-ensembletest(model1, model3, model4, processor, args, label_list, tokenizer, device)
-
+    test(model1, processor, args, label_list, tokenizer, device)
+    test(model2, processor, args, label_list, tokenizer, device)
+    test(model3, processor, args, label_list, tokenizer, device)
+    test(model4, processor, args, label_list, tokenizer, device)
+    test(model5, processor, args, label_list, tokenizer, device)
+    ensembletest(
+        model1,
+        model2,
+        model3,
+        model4,
+        model5,
+        processor,
+        args,
+        label_list,
+        tokenizer,
+        device,
+    )
+    model1.train()
+    model2.train()
+    model3.train()
+    model4.train()
+    model5.train()

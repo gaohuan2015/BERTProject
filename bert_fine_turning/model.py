@@ -42,7 +42,7 @@ class DPCNN(nn.Module):
             nn.Conv1d(bert_output_size, self.channel_size, kernel_size=3, padding=1),
             nn.BatchNorm1d(num_features=self.channel_size),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(0.3),
         )
 
         self.conv_block = nn.Sequential(
@@ -76,7 +76,7 @@ class DPCNN(nn.Module):
         x = x.permute(0, 2, 1)
         x = x.contiguous().view(x.size(0), -1)
         out = self.linear_out(x)
-        return F.softmax(out, dim=-1)
+        return out
 
     def _block(self, x):
         # Pooling
@@ -117,7 +117,7 @@ class RCNN(nn.Module):
     def __init__(self, bert, bert_output_size=768, num_labels=26):
         super(RCNN, self).__init__()
         self.word_embeddings = bert
-        self.dropout = 0.8
+        self.dropout = 0.5
         self.lstm = nn.LSTM(768, 100, dropout=0.8, bidirectional=True)
         self.W2 = nn.Linear(2 * 100 + 768, 100)
         self.label = nn.Linear(100, num_labels)
