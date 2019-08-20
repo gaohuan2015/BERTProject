@@ -54,12 +54,6 @@ def test(model, processor, args, label_list, tokenizer, device):
             else:
                 output = model(input_ids, segment_ids, input_mask)
             labpre = output
-            # labpre, ind = torch.max(output_base,dim=-1)
-            # labpre1, ind1 = torch.max(output_pad,dim=-1)
-            # if labpre >= labpre1:
-            #     labpre = ind
-            # else:
-            #     labpre = ind1
             labpre = labpre.argmax(dim=1)
             predict = np.hstack((predict, labpre.cpu().numpy()))
             gt = np.hstack((gt, label_ids.cpu().numpy()))
@@ -137,7 +131,6 @@ def ensembletest(
             output1 = model1(input_ids, segment_ids, input_mask)
             output2 = model2(input_ids, segment_ids, input_mask)
             output3 = model3(input_ids, segment_ids, input_mask)
-<<<<<<< HEAD
             output4 = model4(input_ids, segment_ids, input_mask)
             output5 = model5(input_ids, segment_ids, input_mask)
             labpre = (
@@ -147,16 +140,6 @@ def ensembletest(
                 + F.softmax(output4, dim=-1)
                 + F.softmax(output5, dim=-1)
             )
-=======
-            labpre = F.softmax(output1, dim=-1) + F.softmax(output2,
-                                                            dim=-1) + F.softmax(output3, dim=-1)
->>>>>>> 58fe44bb70f483649b9a78722b9838b9f05aa31e
-            # labpre, ind = torch.max(output_base,dim=-1)
-            # labpre1, ind1 = torch.max(output_pad,dim=-1)
-            # if labpre >= labpre1:
-            #     labpre = ind
-            # else:
-            #     labpre = ind1
             labpre = labpre.argmax(dim=1)
             predict = np.hstack((predict, labpre.cpu().numpy()))
             gt = np.hstack((gt, label_ids.cpu().numpy()))

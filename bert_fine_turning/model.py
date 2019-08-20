@@ -9,24 +9,22 @@ class Seq2SeqAttention(nn.Module):
     def __init__(self, bert, bert_output_size=768, num_labels=26):
         super(Seq2SeqAttention, self).__init__()
         self.embeddings = bert
-        self.lstm = nn.LSTM(input_size=768,
-                            hidden_size=100,
-                            num_layers=2,
-                            bidirectional=True)
-        self.dropout = nn.Dropout(0.5)
-        self.fc = nn.Linear(
-            100 * (1+True) * 2,
-            num_labels
+        self.lstm = nn.LSTM(
+            input_size=768, hidden_size=100, num_layers=2, bidirectional=True
         )
+        self.dropout = nn.Dropout(0.5)
+        self.fc = nn.Linear(100 * (1 + True) * 2, num_labels)
         self.softmax = nn.Softmax()
 
     def apply_attention(self, rnn_output, final_hidden_state):
         hidden_state = final_hidden_state.unsqueeze(2)
         attention_scores = torch.bmm(rnn_output, hidden_state).squeeze(2)
         soft_attention_weights = F.softmax(attention_scores, 1).unsqueeze(
-            2)  # shape = (batch_size, seq_len, 1)
-        attention_output = torch.bmm(rnn_output.permute(
-            0, 2, 1), soft_attention_weights).squeeze(2)
+            2
+        )  # shape = (batch_size, seq_len, 1)
+        attention_output = torch.bmm(
+            rnn_output.permute(0, 2, 1), soft_attention_weights
+        ).squeeze(2)
         return attention_output
 
     def forward(self, input_ids, segment_ids, input_mask):
@@ -36,17 +34,15 @@ class Seq2SeqAttention(nn.Module):
         result = result.permute(1, 0, 2)
         lstm_output, (h_n, c_n) = self.lstm(result)
         batch_size = h_n.shape[1]
-        h_n_final_layer = h_n.view(2,
-                                   True + 1,
-                                   batch_size,
-                                   100)[-1, :, :, :]
+        h_n_final_layer = h_n.view(2, True + 1, batch_size, 100)[-1, :, :, :]
         final_hidden_state = torch.cat(
-            [h_n_final_layer[i, :, :] for i in range(h_n_final_layer.shape[0])], dim=1)
+            [h_n_final_layer[i, :, :] for i in range(h_n_final_layer.shape[0])], dim=1
+        )
 
         attention_out = self.apply_attention(
-            lstm_output.permute(1, 0, 2), final_hidden_state)
-        concatenated_vector = torch.cat(
-            [final_hidden_state, attention_out], dim=1)
+            lstm_output.permute(1, 0, 2), final_hidden_state
+        )
+        concatenated_vector = torch.cat([final_hidden_state, attention_out], dim=1)
         final_feature_map = self.dropout(concatenated_vector)
         final_out = self.fc(final_feature_map)
         return self.softmax(final_out)
@@ -64,12 +60,10 @@ class ResnetBlock(nn.Module):
         self.conv = nn.Sequential(
             nn.BatchNorm1d(num_features=self.channel_size),
             nn.ReLU(inplace=True),
-            nn.Conv1d(self.channel_size, self.channel_size,
-                      kernel_size=3, padding=1),
+            nn.Conv1d(self.channel_size, self.channel_size, kernel_size=3, padding=1),
             nn.BatchNorm1d(num_features=self.channel_size),
             nn.ReLU(inplace=True),
-            nn.Conv1d(self.channel_size, self.channel_size,
-                      kernel_size=3, padding=1),
+            nn.Conv1d(self.channel_size, self.channel_size, kernel_size=3, padding=1),
         )
 
     def forward(self, x):
@@ -88,27 +82,19 @@ class DPCNN(nn.Module):
         self.word_embeddings = bert
         # region embedding
         self.region_embedding = nn.Sequential(
-            nn.Conv1d(bert_output_size, self.channel_size,
-                      kernel_size=3, padding=1),
+            nn.Conv1d(bert_output_size, self.channel_size, kernel_size=3, padding=1),
             nn.BatchNorm1d(num_features=self.channel_size),
-<<<<<<< HEAD
             nn.ReLU(),
             nn.Dropout(0.3),
-=======
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.2),
->>>>>>> 58fe44bb70f483649b9a78722b9838b9f05aa31e
         )
 
         self.conv_block = nn.Sequential(
             nn.BatchNorm1d(num_features=self.channel_size),
             nn.ReLU(),
-            nn.Conv1d(self.channel_size, self.channel_size,
-                      kernel_size=3, padding=1),
+            nn.Conv1d(self.channel_size, self.channel_size, kernel_size=3, padding=1),
             nn.BatchNorm1d(num_features=self.channel_size),
             nn.ReLU(),
-            nn.Conv1d(self.channel_size, self.channel_size,
-                      kernel_size=3, padding=1),
+            nn.Conv1d(self.channel_size, self.channel_size, kernel_size=3, padding=1),
         )
 
         resnet_block_list = []
@@ -155,7 +141,7 @@ class TextRNN(nn.Module):
     def __init__(self, bert, bert_output_size=768, num_labels=26):
         super(TextRNN, self).__init__()
         self.word_embeddings = bert
-        self.lstm = nn.LSTM(768, 100, bidirectional=True, dropout=0.5)
+        self.lstm = nn.LSTM(768, 100, bidirectional=True, num_layers=2, dropout=0.5)
         self.label = nn.Linear(200, num_labels)
 
     def forward(self, input_ids, segment_ids, input_mask):
@@ -163,10 +149,9 @@ class TextRNN(nn.Module):
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
         input = result.permute(1, 0, 2)
-        h_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
-        c_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
-        output, (final_hidden_state, final_cell_state) = self.lstm(
-            input, (h_0, c_0))
+        h_0 = Variable(torch.zeros(4, input_ids.size(0), 100).cuda())
+        c_0 = Variable(torch.zeros(4, input_ids.size(0), 100).cuda())
+        output, (final_hidden_state, final_cell_state) = self.lstm(input, (h_0, c_0))
         output = output.permute(1, 0, 2)
         return self.label(output[:, -1])
 
@@ -176,7 +161,7 @@ class RCNN(nn.Module):
         super(RCNN, self).__init__()
         self.word_embeddings = bert
         self.dropout = 0.5
-        self.lstm = nn.LSTM(768, 100, dropout=0.8, bidirectional=True)
+        self.lstm = nn.LSTM(768, 100, dropout=0.8, num_layers=2, bidirectional=True)
         self.W2 = nn.Linear(2 * 100 + 768, 100)
         self.label = nn.Linear(100, num_labels)
 
@@ -185,11 +170,10 @@ class RCNN(nn.Module):
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
         input = result.permute(1, 0, 2)
-        h_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
-        c_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
+        h_0 = Variable(torch.zeros(4, input_ids.size(0), 100).cuda())
+        c_0 = Variable(torch.zeros(4, input_ids.size(0), 100).cuda())
 
-        output, (final_hidden_state, final_cell_state) = self.lstm(
-            input, (h_0, c_0))
+        output, (final_hidden_state, final_cell_state) = self.lstm(input, (h_0, c_0))
         final_encoding = torch.cat((output, input), 2).permute(1, 0, 2)
         y = self.W2(final_encoding)
         y = y.permute(0, 2, 1)
@@ -208,7 +192,8 @@ class Classifier_base_model(nn.Module):
 
     def forward(self, input_ids, segment_ids, input_mask):
         hiddens_outputs, cls_outputs = self.bert(
-            input_ids, segment_ids, input_mask, output_all_encoded_layers=False)
+            input_ids, segment_ids, input_mask, output_all_encoded_layers=False
+        )
         pred = self.lin(cls_outputs)
         return pred
 
@@ -222,7 +207,8 @@ class Classifier_pad_model(nn.Module):
 
     def forward(self, input_ids, segment_ids, input_mask):
         hiddens_outputs, cls_outputs = self.bert(
-            input_ids, segment_ids, input_mask, output_all_encoded_layers=False)
+            input_ids, segment_ids, input_mask, output_all_encoded_layers=False
+        )
         pad_outputs = hiddens_outputs[-1][:, -1, :]
         outs = torch.cat((pad_outputs, cls_outputs), dim=1)
         pred = self.lin(outs)
@@ -238,7 +224,8 @@ class Classifier_sep_model(nn.Module):
 
     def forward(self, input_ids, segment_ids, input_mask):
         hiddens_outputs, cls_outputs = self.bert(
-            input_ids, segment_ids, input_mask, output_all_encoded_layers=False)
+            input_ids, segment_ids, input_mask, output_all_encoded_layers=False
+        )
         sep_outputs = self.sep_search(hiddens_outputs[-1], input_mask)
         outs = torch.cat((sep_outputs, cls_outputs), dim=1)
         pred = self.lin(outs)
@@ -293,11 +280,9 @@ class TextCNN(nn.Module):
 class Classifier_joint_model(nn.Module):
     def __init__(self, bert, bert_output_size=768, num_labels=22):
         super(Classifier_joint_model, self).__init__()
-        self.bert_base = Classifier_base_model(
-            bert, bert_output_size, num_labels)
+        self.bert_base = Classifier_base_model(bert, bert_output_size, num_labels)
         self.textCNN = TextCNN(22000, bert, num_labels)
-        self.bert_pad = Classifier_pad_model(
-            bert, bert_output_size, num_labels)
+        self.bert_pad = Classifier_pad_model(bert, bert_output_size, num_labels)
         self.dropout = nn.Dropout(0.3)
 
     def forward(self, input_ids, segment_ids, input_mask):
