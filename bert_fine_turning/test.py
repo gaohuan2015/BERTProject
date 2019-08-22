@@ -1,5 +1,6 @@
 import os
 import torch
+import random
 import numpy as np
 import torch.nn.functional as F
 from data import convert_examples_to_features
@@ -7,6 +8,10 @@ from torch.utils.data import TensorDataset, DataLoader, SequentialSampler
 
 
 def test(model, processor, args, label_list, tokenizer, device):
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
     test_examples = processor.get_test_examples(args.test_data_dir)
     with open(args.test_data_dir, "r", encoding='utf-8') as f:
         test_list = []

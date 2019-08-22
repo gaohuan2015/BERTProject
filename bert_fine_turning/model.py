@@ -12,7 +12,7 @@ class Seq2SeqAttention(nn.Module):
         self.lstm = nn.LSTM(
             input_size=768, hidden_size=100, num_layers=2, bidirectional=True
         )
-        self.dropout = nn.Dropout(0.5)
+        # self.dropout = nn.Dropout(0.5)
         self.fc = nn.Linear(100 * (1 + True) * 2, num_labels)
         self.softmax = nn.Softmax()
 
@@ -31,7 +31,7 @@ class Seq2SeqAttention(nn.Module):
         result, cls_outputs = self.embeddings(
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
-        result = result.permute(1, 0, 2)
+        result = result[:,1:-2,:].permute(1, 0, 2)
         lstm_output, (h_n, c_n) = self.lstm(result)
         batch_size = h_n.shape[1]
         h_n_final_layer = h_n.view(2, True + 1, batch_size, 100)[-1, :, :, :]
@@ -43,7 +43,7 @@ class Seq2SeqAttention(nn.Module):
             lstm_output.permute(1, 0, 2), final_hidden_state
         )
         concatenated_vector = torch.cat([final_hidden_state, attention_out], dim=1)
-        final_feature_map = self.dropout(concatenated_vector)
+        final_feature_map = concatenated_vector
         final_out = self.fc(final_feature_map)
         return self.softmax(final_out)
 
@@ -85,7 +85,7 @@ class DPCNN(nn.Module):
             nn.Conv1d(bert_output_size, self.channel_size, kernel_size=3, padding=1),
             nn.BatchNorm1d(num_features=self.channel_size),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            # nn.Dropout(0.3),
         )
 
         self.conv_block = nn.Sequential(
@@ -112,7 +112,7 @@ class DPCNN(nn.Module):
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
         # Region embedding
-        x = result.permute(0, 2, 1)
+        x = result[:,1:-2,:].permute(0, 2, 1)
         x = self.region_embedding(x)
         x = self.conv_block(x)
         x = self.resnet_layer(x)
@@ -141,16 +141,16 @@ class TextRNN(nn.Module):
     def __init__(self, bert, bert_output_size=768, num_labels=26):
         super(TextRNN, self).__init__()
         self.word_embeddings = bert
-        self.lstm = nn.LSTM(768, 100, bidirectional=True, num_layers=2, dropout=0.5)
+        self.lstm = nn.LSTM(768, 100, bidirectional=True)
         self.label = nn.Linear(200, num_labels)
 
     def forward(self, input_ids, segment_ids, input_mask):
         result, cls_outputs = self.word_embeddings(
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
-        input = result.permute(1, 0, 2)
-        h_0 = Variable(torch.zeros(4, input_ids.size(0), 100).cuda())
-        c_0 = Variable(torch.zeros(4, input_ids.size(0), 100).cuda())
+        input = result[:,1:-2,:].permute(1, 0, 2)
+        h_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
+        c_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
         output, (final_hidden_state, final_cell_state) = self.lstm(input, (h_0, c_0))
         output = output.permute(1, 0, 2)
         return self.label(output[:, -1])
@@ -160,8 +160,8 @@ class RCNN(nn.Module):
     def __init__(self, bert, bert_output_size=768, num_labels=26):
         super(RCNN, self).__init__()
         self.word_embeddings = bert
-        self.dropout = 0.5
-        self.lstm = nn.LSTM(768, 100, dropout=0.8, num_layers=2, bidirectional=True)
+        # self.dropout = 0.5
+        self.lstm = nn.LSTM(768, 100, bidirectional=True)
         self.W2 = nn.Linear(2 * 100 + 768, 100)
         self.label = nn.Linear(100, num_labels)
 
@@ -169,9 +169,9 @@ class RCNN(nn.Module):
         result, cls_outputs = self.word_embeddings(
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
-        input = result.permute(1, 0, 2)
-        h_0 = Variable(torch.zeros(4, input_ids.size(0), 100).cuda())
-        c_0 = Variable(torch.zeros(4, input_ids.size(0), 100).cuda())
+        input = result[:,1:-2,:].permute(1, 0, 2)
+        h_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
+        c_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
 
         output, (final_hidden_state, final_cell_state) = self.lstm(input, (h_0, c_0))
         final_encoding = torch.cat((output, input), 2).permute(1, 0, 2)
@@ -207,7 +207,7 @@ class Classifier_pad_model(nn.Module):
 
     def forward(self, input_ids, segment_ids, input_mask):
         hiddens_outputs, cls_outputs = self.bert(
-            input_ids, segment_ids, input_mask, output_all_encoded_layers=False
+            input_ids, segment_ids, input_mask, output_all_encoded_layers=True
         )
         pad_outputs = hiddens_outputs[-1][:, -1, :]
         outs = torch.cat((pad_outputs, cls_outputs), dim=1)
@@ -224,7 +224,7 @@ class Classifier_sep_model(nn.Module):
 
     def forward(self, input_ids, segment_ids, input_mask):
         hiddens_outputs, cls_outputs = self.bert(
-            input_ids, segment_ids, input_mask, output_all_encoded_layers=False
+            input_ids, segment_ids, input_mask, output_all_encoded_layers=True
         )
         sep_outputs = self.sep_search(hiddens_outputs[-1], input_mask)
         outs = torch.cat((sep_outputs, cls_outputs), dim=1)
@@ -269,7 +269,7 @@ class TextCNN(nn.Module):
         result, cls_outputs = self.embedding(
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
-        result = result.unsqueeze(1)
+        result = result[:,1:-1,:].unsqueeze(1)
         conv_value = [F.relu(conv(result)).squeeze(3) for conv in self.convs]
         x = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in conv_value]
         x = torch.cat(x, 1)
@@ -283,7 +283,7 @@ class Classifier_joint_model(nn.Module):
         self.bert_base = Classifier_base_model(bert, bert_output_size, num_labels)
         self.textCNN = TextCNN(22000, bert, num_labels)
         self.bert_pad = Classifier_pad_model(bert, bert_output_size, num_labels)
-        self.dropout = nn.Dropout(0.3)
+        # self.dropout = nn.Dropout(0.3)
 
     def forward(self, input_ids, segment_ids, input_mask):
         pred_base = self.bert_base(input_ids, segment_ids, input_mask)

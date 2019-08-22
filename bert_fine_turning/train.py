@@ -26,7 +26,6 @@ from model import (
     TextCNN,
     TextRNN,
     DPCNN,
-    Seq2SeqAttention
 )
 
 
@@ -88,8 +87,7 @@ ti = time.strftime("%Y-%m-%d-%H-%M", time.localtime(time.time()))
 checkpoints_dir = "checkpoints/{}/".format(ti)
 if os.path.exists(checkpoints_dir) and os.listdir(checkpoints_dir):
     raise ValueError(
-        "Output directory ({}) already exists and is not empty.".format(
-            checkpoints_dir)
+        "Output directory ({}) already exists and is not empty.".format(checkpoints_dir)
     )
 os.makedirs(checkpoints_dir, exist_ok=True)
 model_save_pth = "checkpoints/{}/bert_classification.pth".format(ti)
@@ -113,7 +111,7 @@ parser.add_argument("--max_seq_length", default=100, type=int, help="字符串�
 parser.add_argument("--eval_batch_size", default=1, type=int, help="验证时batch大小")
 parser.add_argument("--train_batch_size", default=8, type=int, help="训练时batch大小")
 parser.add_argument("--no_cuda", default=False, action="store_true", help="用不用CUDA")
-parser.add_argument("--learning_rate", default=3e-5, type=float, help="Adam初始学习步长")
+parser.add_argument("--learning_rate", default=4e-5, type=float, help="Adam初始学习步长")
 parser.add_argument(
     "--train_data_dir",
     default="data/cross validation/cross_validation_train4.csv",
@@ -130,8 +128,7 @@ parser.add_argument("--num_train_epochs", default=100, type=float, help="训练�
 parser.add_argument(
     "--do_lower_case", default=True, action="store_true", help="英文字符的大小写转换"
 )
-parser.add_argument("--loss_function",
-                    default="cross_entropy", type=str, help="损失函数类型")
+parser.add_argument("--loss_function", default="cross_entropy", type=str, help="损失函数类型")
 parser.add_argument(
     "--bert_model", default="bert-base-chinese", type=str, help="选择bert模型的类型"
 )
@@ -168,7 +165,7 @@ else:
 random.seed(args.seed)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
-
+torch.cuda.manual_seed_all(args.seed)
 if n_gpu > 0:
     torch.cuda.manual_seed_all(args.seed)
 
@@ -188,7 +185,7 @@ model1 = RCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
 model1.to(device)
 model2 = Classifier_base_model(bertmodel, bert_output_size=768, num_labels=num_labels)
 model2.to(device)
-model3 = TextCNN(bertmodel, bert_output_size=768, num_labels=num_labels)
+model3 = Classifier_pad_model(bertmodel, bert_output_size=768, num_labels=num_labels)
 model3.to(device)
 model4 = TextRNN(bertmodel, bert_output_size=768, num_labels=num_labels)
 model4.to(device)
@@ -217,7 +214,7 @@ optimizer3 = BertAdam(
     t_total=t_total,
     weight_decay=0.001,
 )
-lookahead3 = Lookahead(optimizer3, k=5, alpha=0.5)
+lookahead3 = Lookahead(optimizer3, k=6, alpha=0.7)
 train_features = convert_examples_to_features(
     train_examples, label_list, args.max_seq_length, tokenizer, show_exp=False
 )
@@ -226,15 +223,12 @@ print("[Train: %d]" % len(train_examples))
 print("[Batch size: %d]" % args.train_batch_size)
 print("[Num steps: %d]" % num_train_steps)
 
-all_input_ids = torch.tensor(
-    [f.input_ids for f in train_features], dtype=torch.long)
-all_input_mask = torch.tensor(
-    [f.input_mask for f in train_features], dtype=torch.long)
+all_input_ids = torch.tensor([f.input_ids for f in train_features], dtype=torch.long)
+all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
 all_segment_ids = torch.tensor(
     [f.segment_ids for f in train_features], dtype=torch.long
 )
-all_label_ids = torch.tensor(
-    [f.label_id for f in train_features], dtype=torch.long)
+all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
 print("\n********************** Preparing Data ***********************")
 train_data = TensorDataset(
     all_input_ids, all_input_mask, all_segment_ids, all_label_ids
@@ -255,7 +249,7 @@ model5.train()
 modellist = [model1, model2, model4, model5]
 loss_func = LossFunctions[args.loss_function]
 trainloss = AverageMeter()
-updateEMA = EMA(0.2, model3)
+updateEMA = EMA(0.4, model3)
 updateEMA.setup()
 for _ in trange(int(args.num_train_epochs), desc="Epoch"):
     total_loss = 0
@@ -271,14 +265,15 @@ for _ in trange(int(args.num_train_epochs), desc="Epoch"):
         kd_loss = (
             F.kl_div(
                 F.log_softmax(pred.view(-1, num_labels).float(), 1),
-                F.softmax(soft_labels / len(modellist), dim=-1),
+                soft_labels / len(modellist),
             )
             * num_labels
         )
         loss = loss + kd_loss
         trainloss.update(loss, pred.size(0))
+        # if n_gpu > 1: loss = loss.mean()
         loss.backward()
-        # torch.nn.utils.clip_grad_norm_(model3.parameters(), 0.01)
+        torch.nn.utils.clip_grad_norm_(model3.parameters(), 0.01)
         lookahead3.step()
         lookahead3.zero_grad()
         updateEMA.update()
