@@ -31,7 +31,7 @@ class Seq2SeqAttention(nn.Module):
         result, cls_outputs = self.embeddings(
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
-        result = result[:,1:-2,:].permute(1, 0, 2)
+        result = result[:, 1:-2, :].permute(1, 0, 2)
         lstm_output, (h_n, c_n) = self.lstm(result)
         batch_size = h_n.shape[1]
         h_n_final_layer = h_n.view(2, True + 1, batch_size, 100)[-1, :, :, :]
@@ -112,7 +112,7 @@ class DPCNN(nn.Module):
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
         # Region embedding
-        x = result[:,1:-2,:].permute(0, 2, 1)
+        x = result[:, 1:-2, :].permute(0, 2, 1)
         x = self.region_embedding(x)
         x = self.conv_block(x)
         x = self.resnet_layer(x)
@@ -141,14 +141,14 @@ class TextRNN(nn.Module):
     def __init__(self, bert, bert_output_size=768, num_labels=26):
         super(TextRNN, self).__init__()
         self.word_embeddings = bert
-        self.lstm = nn.LSTM(768, 100, bidirectional=True)
+        self.lstm = nn.LSTM(768, 100, bidirectional=True, dropout=0.5)
         self.label = nn.Linear(200, num_labels)
 
     def forward(self, input_ids, segment_ids, input_mask):
         result, cls_outputs = self.word_embeddings(
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
-        input = result[:,1:-2,:].permute(1, 0, 2)
+        input = result[:, 1:-2, :].permute(1, 0, 2)
         h_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
         c_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
         output, (final_hidden_state, final_cell_state) = self.lstm(input, (h_0, c_0))
@@ -161,7 +161,7 @@ class RCNN(nn.Module):
         super(RCNN, self).__init__()
         self.word_embeddings = bert
         # self.dropout = 0.5
-        self.lstm = nn.LSTM(768, 100, bidirectional=True)
+        self.lstm = nn.LSTM(768, 100, bidirectional=True, dropout=0.8)
         self.W2 = nn.Linear(2 * 100 + 768, 100)
         self.label = nn.Linear(100, num_labels)
 
@@ -169,7 +169,7 @@ class RCNN(nn.Module):
         result, cls_outputs = self.word_embeddings(
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
-        input = result[:,1:-2,:].permute(1, 0, 2)
+        input = result[:, 1:-2, :].permute(1, 0, 2)
         h_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
         c_0 = Variable(torch.zeros(2, input_ids.size(0), 100).cuda())
 
@@ -269,7 +269,7 @@ class TextCNN(nn.Module):
         result, cls_outputs = self.embedding(
             input_ids, segment_ids, input_mask, output_all_encoded_layers=False
         )
-        result = result[:,1:-1,:].unsqueeze(1)
+        result = result[:, 1:-1, :].unsqueeze(1)
         conv_value = [F.relu(conv(result)).squeeze(3) for conv in self.convs]
         x = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in conv_value]
         x = torch.cat(x, 1)
