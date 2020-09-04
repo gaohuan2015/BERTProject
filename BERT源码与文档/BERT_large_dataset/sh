@@ -1,0 +1,16 @@
+export TRAIN_FILE=DataSet/MLM_Train.csv
+export TEST_FILE=DataSet/MLM_Test.csv
+
+python TrainMLM.py \
+    --output_dir=output \
+    --model_type=bert \
+    --model_name_or_path=./PretrianedModel/bert_base_chinese \
+    --do_train \
+    --train_data_file=$TRAIN_FILE \
+    --do_eval \
+    --eval_data_file=$TEST_FILE \
+    --mlm
+
+cp PretrianedModel/bert_base_chinese/vocab.txt output/vocab.txt
+
+python TrainBert.py
